@@ -21,14 +21,14 @@ def rotate_keypair():
     key_name = 'dev_key'
     prv_key = key_name + '.pem'
     pub_key = key_name + '.pub'
-    ssh_host = 'dev'
+    ssh_host = 'dev'    # name of SSH alias
     ssh_cfg = key_path + 'config.d/' + ssh_host
 
     # initial EC2 defaults (update these with EC2 instance values)
-    ec2_ip = '54.193.60.207'
-    ec2_key = 'dev_key.pem'
-    ec2_user = 'ec2-user'
-    ec2_port = '22'
+    ec2_ip = '54.193.60.207'        # public IP address or public DNS
+    ec2_key = 'dev_key.pem'         # current private key
+    ec2_user = 'ec2-user'           # default AMI user
+    ec2_port = '22'                 # SSH port number
 
     # initial ssh connection string
     ec2_ssh_str = key_path + ec2_key + ' ' + ec2_user + '@' + ec2_ip
@@ -165,6 +165,8 @@ def rotate_keypair():
 
             with open('keypair.py', "w") as file:
                 file.write(sub)
+
+            print('\n**** EC2 key pair rotation complete... try it: $ ssh dev')
 
 if __name__ == '__main__':
     rotate_keypair()
