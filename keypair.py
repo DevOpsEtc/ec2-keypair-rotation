@@ -4,6 +4,7 @@ import os
 import subprocess
 import boto3
 from botocore.exceptions import ClientError
+from colorama import init, Fore
 
 def rotate_keypair():
 
@@ -25,7 +26,7 @@ def rotate_keypair():
     ssh_cfg = key_path + 'config.d/' + ssh_host
 
     # initial EC2 defaults (update these with EC2 instance values)
-    ec2_ip = '54.193.60.207'        # public IP address or public DNS
+    ec2_ip = '54.193.66.178'        # public IP address or public DNS
     ec2_key = 'dev_key.pem'         # current private key
     ec2_user = 'ec2-user'           # default AMI user
     ec2_port = '22'                 # SSH port number
@@ -33,29 +34,33 @@ def rotate_keypair():
     # initial ssh connection string
     ec2_ssh_str = key_path + ec2_key + ' ' + ec2_user + '@' + ec2_ip
 
+    # colorama: automatically reset style after each call
+    init(autoreset=True)
+    ck = Fore.CYAN + ' \N{heavy check mark}'
+
     ec2 = boto3.client('ec2')
 
     try:
-        print('\nChecking for existing EC2 key pair: ' + key_name)
+        print('\n=> Checking for existing EC2 key pair: ' + key_name + ck)
         ec2.describe_key_pairs(KeyNames=[key_name])
     except ClientError as err:
         if err.response["Error"]["Code"] == "InvalidKeyPair.NotFound":
-            gen_msg = 'Not Found! Generating new 2048-bit RSA key pair: '
+            gen_msg = '   Not Found! Generating a new key pair: '
     else:
-        gen_msg = 'Found! Generating replacement 2048-bit RSA key pair: '
+        gen_msg = '   Found! Generating a replacement key pair: '
         ec2.delete_key_pair(KeyName=key_name)
 
-    print('\n' + gen_msg + key_name)
+    print('\n' + Fore.CYAN + gen_msg + key_name)
     keypair = ec2.create_key_pair(KeyName=key_name)
 
-    print('\nChecking for existing private key: ' + key_path + prv_key)
+    print('\n=> Checking for existing private key: ' + key_path + prv_key + ck)
     if os.path.isfile(key_path + prv_key):
-        down_msg = '\nFound! Downloading replacement private key: '
+        down_msg = '\n   Found! Downloading replacement: '
         prv_key = 'tmp.' + prv_key
     else:
-        down_msg = '\nNot Found! Downloading private key: '
+        down_msg = '\n   Not Found! Downloading new: '
 
-    print(down_msg + key_path + prv_key)
+    print(Fore.CYAN + down_msg + key_path + prv_key)
     # check for/make default SSH directory with octal mode permission syntax
     if not os.path.isdir(key_path):
         os.mkdir(key_path, 0o700)
@@ -66,36 +71,40 @@ def rotate_keypair():
         key_path + prv_key,'w+') as key:
         key.write(keypair['KeyMaterial'])
 
-    print('\nAdd passphrase to private key (enter passphrase twice)...\n')
-    os.chmod(key_path + prv_key, 0o600) # temporarily needed to add passphrase
-    subprocess.run('ssh-keygen -p -f ' + key_path + prv_key, shell=True)
+    # temporarily tighten file perms; needed for encryption and public key gen
+    os.chmod(key_path + prv_key, 0o600)
 
-    print('\nAdd passphrase to ssh-agent & OS keychain (enter passphrase)\n')
-    subprocess.run('/usr/bin/ssh-add -K ' + key_path + prv_key, shell=True)
-
-    print('\nSet file permissions on private key to 400')
-    os.chmod(key_path + prv_key, 0o400)
-
-    print('\nGenerating public key (enter passphrase)...\n')
+    print('\n=> Generating public key' + ck)
     subprocess.run('ssh-keygen -y -f ' + key_path + prv_key + ' > ' \
         + key_path + pub_key, shell=True)
 
-    print('\nPushing public key to EC2 instance\n')
+    print('=> Pushing public key to EC2 instance' + ck)
     # disable initial key verification prompt & add key to ~/.ssh/known_hosts
     subprocess.run('ssh -o StrictHostKeyChecking=no -tt -i ' + ec2_ssh_str + \
         ' exit &>/dev/null', shell=True)
     subprocess.run('cat ' + key_path + pub_key + ' | ssh -i ' + ec2_ssh_str + \
         ' "sudo tee -a ~/.ssh/authorized_keys > /dev/null"', shell=True)
 
-    print('Removing public key from local disk')
+    print('=> Removing public key from local disk' + ck)
     os.remove(key_path + pub_key)
 
-    print('\nChecking for existing SSH alias: ' + ssh_cfg)
+    print('=> Encrypt private key with passphrase' + ck + '\n')
+    subprocess.run('ssh-keygen -p -f ' + key_path + prv_key + \
+        ' &>/dev/null', shell=True)
+
+    print('\n=> Add passphrase to ssh-agent & keychain' + ck)
+    subprocess.run('/usr/bin/ssh-add -K ' + key_path + prv_key + \
+        ' &>/dev/null', shell=True)
+
+    print('=> Set file permissions on private key to 400' + ck)
+    os.chmod(key_path + prv_key, 0o400)
+
+    print('=> Checking for existing SSH alias: ' + ssh_cfg + ck)
     if os.path.isfile(ssh_cfg):
-        create_msg = '\nFound! Creating replacement SSH alias: '
+        create_msg = '\n   Found! Creating replacement: '
         ssh_cfg = ssh_cfg + '_tmp'
     else:
-        create_msg = '\nNot Found! Creating SSH alias: '
+        create_msg = '\n  Not Found! Creating new: '
 
     # create custom SSH config directory if not already exist
     if not os.path.isdir(key_path + 'config.d/'):
@@ -111,10 +120,10 @@ def rotate_keypair():
             config.write(first_line)
             config.writelines(lines)
 
-    print(create_msg + ssh_cfg + ' (enter password)\n')
+    print(Fore.CYAN + create_msg + ssh_cfg)
     with open(ssh_cfg, "w") as config:
         txt_lines = [
-        "Host "+ ssh_host,
+        "Host "+ ssh_host + '_tmp',
         "\n   HostName " + ec2_ip,
         "\n   User " + ec2_user,
         "\n   Port " + ec2_port,
@@ -122,51 +131,64 @@ def rotate_keypair():
         ]
         config.writelines(txt_lines)
 
-    print('Set file permissions on SSH alias to 600')
+    print('\n=> Set file permissions on SSH alias to 600' + ck)
     os.chmod(ssh_cfg, 0o600)
 
-    print('\nTesting remote access to EC2 instance using new key pair...')
+    print('=> Testing remote access to EC2 instance using new key pair' + ck)
+    # ssh_host = 'greg'
     try:
-        subprocess.run('ssh ' + ssh_host + ' exit &>/dev/null', shell=True)
-    except OSError:
-        RuntimeError('Error trying to open ssh connection')
+        subprocess.run(
+            'ssh ' + ssh_host + '_tmp' + ' exit',
+            check=True,
+            shell=True,
+            universal_newlines=True,
+            stderr=subprocess.PIPE,
+        )
+    except subprocess.CalledProcessError as err:
+        print(Fore.RED, err.stderr)
     else:
-        print('\nSuccess!')
+        print(Fore.CYAN + '\n   Successfully connected to EC2 instance with '
+            'new key pair!\n')
+
+        prv_key = key_name + '.pem'
 
         if os.path.isfile(key_path + 'config.d/' + ssh_host + '_tmp'):
-            print('\nRemoving prior SSH alias config')
+            print('=> Removing prior SSH alias config'+ ck)
             os.remove(key_path + 'config.d/' + ssh_host)
 
             ssh_cfg = key_path + 'config.d/' + ssh_host
-            print('\nRenaming new SSH alias config to ' + ssh_cfg)
+            print('=> Renaming new SSH alias config to ' + ssh_cfg + ck)
             os.rename(ssh_cfg + '_tmp', ssh_cfg)
 
-        if os.path.isfile(key_path + 'tmp.' + key_name + '.pem'):
-            print('\nRemoving old private key ' + key_path + key_name + '.pem')
-            os.remove(key_path + key_name + '.pem')
-            prv_key = key_name + '.pem'
-            print('\nRenaming new private key to ' + key_path + prv_key)
+        print('=> Updating Host & IdentityFile values in ' + ssh_cfg + ck)
+        with open(ssh_cfg) as config:
+            sub = (config.read()
+                .replace('tmp.' + prv_key, prv_key)
+                .replace(ssh_host + '_tmp', ssh_host)
+            )
+        with open(ssh_cfg, "w") as config:
+            config.write(sub)
+
+        if ec2_key != prv_key:
+            print('=> Removing initial EC2 private key' + ck)
+            os.remove(key_path + ec2_key)
+
+        if os.path.isfile(key_path + 'tmp.' + prv_key):
+            print('=> Removing old private key '+ prv_key + ck)
+            os.remove(key_path + prv_key)
+
+            print('=> Renaming new private key to ' + key_path + prv_key + ck)
             os.rename(key_path + 'tmp.' + prv_key, key_path + prv_key)
 
-            print('\nUpdating IdentityFile value in ' + ssh_cfg)
-            with open(ssh_cfg) as config:
-                sub = config.read().replace('tmp.' + prv_key, prv_key)
-
-            with open(ssh_cfg, "w") as config:
-                config.write(sub)
-
-            if ec2_key != prv_key:
-                print('\nRemoving initial EC2 private key')
-                os.remove(key_path + ec2_key)
-
-            print('\nUpdating ec2_key default value => ' + prv_key)
+            print('=> Updating ec2_key default value => ' + prv_key + ck)
             with open('keypair.py') as file:
                 sub = file.read().replace(ec2_key, prv_key)
 
             with open('keypair.py', "w") as file:
                 file.write(sub)
 
-            print('\n**** EC2 key pair rotation complete... try it: $ ssh dev')
+            print(Fore.CYAN + '\n**** EC2 key pair rotation complete... '
+                'try it: $ ssh dev ****')
 
 if __name__ == '__main__':
     rotate_keypair()
