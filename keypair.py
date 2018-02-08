@@ -16,21 +16,21 @@ def rotate_keypair():
     key pair, removes old EC2 key pair and private key from local disk.
     """
 
+    # initial EC2 defaults (update these with EC2 instance values)
+    ec2_ip = '54.193.18.195'    # public IP address or public DNS
+    ec2_key = 'dev_key.pem'     # current private key
+    ec2_user = 'ec2-user'       # default AMI user
+    ec2_port = '22'             # SSH port number
+
     # key pair rotation defaults
     key_path = '~/.ssh/'
     key_path = os.path.expanduser(key_path)
-    key_name = 'dev_key'
+    key_name = 'dev_key'        # base name of existing private key
     prv_key = key_name + '.pem'
     pub_key = key_name + '.pub'
-    ssh_host = 'dev'    # name of SSH alias
+    ssh_host = 'dev'            # name of SSH alias
     ssh_cfg = key_path + 'config.d/' + ssh_host
-    last_host_key = '54.153.105.88' # no edit, it's autopopulated!
-
-    # initial EC2 defaults (update these with EC2 instance values)
-    ec2_ip = '54.153.105.88' # public IP address or public DNS
-    ec2_key = 'dev_key.pem'  # current private key
-    ec2_user = 'ec2-user'    # default AMI user
-    ec2_port = '22'          # SSH port number
+    last_host_key = '54.193.18.195' # no edit, it's autopopulated!
 
     # initial ssh connection string
     ec2_ssh_str = key_path + ec2_key + ' ' + ec2_user + '@' + ec2_ip
@@ -98,11 +98,13 @@ def rotate_keypair():
     subprocess.run('ssh-keygen -p -f ' + key_path + prv_key + \
         ' &>/dev/null', shell=True)
 
-    print('\n=> Adding passphrase to ssh-agent & keychain' + ck)
-    subprocess.run('/usr/bin/ssh-add -K ' + key_path + prv_key + \
-        ' &>/dev/null', shell=True)
+    print('\n=> Bust ssh-agent cache' + ck)
+    subprocess.run('/usr/bin/ssh-add -DK &>/dev/null', shell=True)
 
-    print('=> Setting file permissions on private key to 400' + ck)
+    print('=> Adding new passphrase to ssh-agent & keychain' + ck + '\n')
+    subprocess.run('/usr/bin/ssh-add -K ' + key_path + prv_key, shell=True)
+
+    print('\n=> Setting file permissions on private key to 400' + ck)
     os.chmod(key_path + prv_key, 0o400)
 
     print('=> Checking for existing SSH alias: ' + ssh_cfg + ck)
@@ -129,11 +131,11 @@ def rotate_keypair():
     print(Fore.CYAN + create_msg + ssh_cfg)
     with open(ssh_cfg, "w") as config:
         txt_lines = [
-        "Host "+ ssh_host + '_tmp',
-        "\n   HostName " + ec2_ip,
-        "\n   User " + ec2_user,
-        "\n   Port " + ec2_port,
-        "\n   IdentityFile " + key_path + prv_key
+        'Host '+ ssh_host + '_tmp',
+        '\n   HostName ' + ec2_ip,
+        '\n   User ' + ec2_user,
+        '\n   Port ' + ec2_port,
+        '\n   IdentityFile ' + key_path + prv_key,
         ]
         config.writelines(txt_lines)
 
@@ -176,8 +178,10 @@ def rotate_keypair():
             config.write(sub)
 
         if ec2_key != prv_key:
-            print('=> Removing initial EC2 private key' + ck)
+            print('=> Removing initial private key (local & EC2)' + ck)
             os.remove(key_path + ec2_key)
+            ec2_keypair = os.path.splitext(ec2_key)[0]  # strip file extention
+            ec2.delete_key_pair(KeyName=ec2_keypair)
 
         if os.path.isfile(key_path + 'tmp.' + prv_key):
             print('=> Removing old private key '+ prv_key + ck)
@@ -186,16 +190,16 @@ def rotate_keypair():
             print('=> Renaming new private key to ' + key_path + prv_key + ck)
             os.rename(key_path + 'tmp.' + prv_key, key_path + prv_key)
 
-            print('=> Updating script\'s default values' + ck)
-            with open('keypair.py') as file:
-                sub = (file.read()
-                    .replace(ec2_key, prv_key)
-                    .replace(last_host_key, ec2_ip))
-            with open('keypair.py', "w") as file:
-                file.write(sub)
+        print('=> Updating script\'s default values' + ck)
+        with open('keypair.py') as file:
+            sub = (file.read()
+                .replace(ec2_key, prv_key)
+                .replace(last_host_key, ec2_ip))
+        with open('keypair.py', "w") as file:
+            file.write(sub)
 
-            print(Fore.CYAN + '\n**** EC2 key pair rotation complete... '
-                'try it: $ ssh dev ****')
+        print(Fore.CYAN + '\n**** EC2 key pair rotation complete... '
+            'try it: $ ssh dev ****')
 
 if __name__ == '__main__':
     rotate_keypair()

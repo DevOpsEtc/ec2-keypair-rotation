@@ -34,11 +34,7 @@ Code walkthrough and additional information can be found on my blog post at [Dev
     ec2_key = 'dev_key.pem'       # current private key
     ec2_user = 'ec2-user'         # default AMI user
     ec2_port = '22'               # SSH port number
-
-    # OPTIONAL: Update these other default values
-    key_path = '~/.ssh/'
-    key_name = 'dev_key'
-    ssh_host = 'dev'            
+    key_name = 'dev_key'          # base name of existing private key
 
     # Run script
     $ cd ~/DevOpsEtc/ec2-keypair-rotation && ./keypair.py
@@ -48,6 +44,8 @@ Code walkthrough and additional information can be found on my blog post at [Dev
 
     # Create bash alias to save some typing (stick in .bashrc for permanency)
     $ alias kr='cd ~/DevOpsEtc/ec2-keypair-rotation && ./keypair.py'
+
+    # rotate key pair again (no need to update variable values this time)
     $ kr
 
 **Known Issues:**
