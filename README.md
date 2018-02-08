@@ -48,6 +48,9 @@ Code walkthrough and additional information can be found on my blog post at [Dev
     # rotate key pair again (no need to update variable values this time)
     $ kr
 
+    # import module from inside your own Python project
+    >>> from keypair import *
+
 **Known Issues:**
 - None
 
