@@ -24,12 +24,13 @@ def rotate_keypair():
     pub_key = key_name + '.pub'
     ssh_host = 'dev'    # name of SSH alias
     ssh_cfg = key_path + 'config.d/' + ssh_host
+    last_host_key = '54.153.105.88' # no edit, it's autopopulated!
 
     # initial EC2 defaults (update these with EC2 instance values)
-    ec2_ip = '54.193.66.178'        # public IP address or public DNS
-    ec2_key = 'dev_key.pem'         # current private key
-    ec2_user = 'ec2-user'           # default AMI user
-    ec2_port = '22'                 # SSH port number
+    ec2_ip = '54.153.105.88' # public IP address or public DNS
+    ec2_key = 'dev_key.pem'  # current private key
+    ec2_user = 'ec2-user'    # default AMI user
+    ec2_port = '22'          # SSH port number
 
     # initial ssh connection string
     ec2_ssh_str = key_path + ec2_key + ' ' + ec2_user + '@' + ec2_ip
@@ -78,25 +79,30 @@ def rotate_keypair():
     subprocess.run('ssh-keygen -y -f ' + key_path + prv_key + ' > ' \
         + key_path + pub_key, shell=True)
 
-    print('=> Pushing public key to EC2 instance' + ck)
-    # disable initial key verification prompt & add key to ~/.ssh/known_hosts
+    print('=> Adding host key to ' + key_path + 'known_hosts' + ck)
+    if last_host_key in open(key_path + 'known_hosts').read():
+        print('=> Also found prior host key... removing' + ck)
+        subprocess.run('ssh-keygen -R ' + last_host_key + \
+            '&>/dev/null', shell=True)
     subprocess.run('ssh -o StrictHostKeyChecking=no -tt -i ' + ec2_ssh_str + \
         ' exit &>/dev/null', shell=True)
+
+    print('=> Pushing public key to EC2 instance' + ck)
     subprocess.run('cat ' + key_path + pub_key + ' | ssh -i ' + ec2_ssh_str + \
         ' "sudo tee -a ~/.ssh/authorized_keys > /dev/null"', shell=True)
 
     print('=> Removing public key from local disk' + ck)
     os.remove(key_path + pub_key)
 
-    print('=> Encrypt private key with passphrase' + ck + '\n')
+    print('=> Encrypting private key with passphrase' + ck + '\n')
     subprocess.run('ssh-keygen -p -f ' + key_path + prv_key + \
         ' &>/dev/null', shell=True)
 
-    print('\n=> Add passphrase to ssh-agent & keychain' + ck)
+    print('\n=> Adding passphrase to ssh-agent & keychain' + ck)
     subprocess.run('/usr/bin/ssh-add -K ' + key_path + prv_key + \
         ' &>/dev/null', shell=True)
 
-    print('=> Set file permissions on private key to 400' + ck)
+    print('=> Setting file permissions on private key to 400' + ck)
     os.chmod(key_path + prv_key, 0o400)
 
     print('=> Checking for existing SSH alias: ' + ssh_cfg + ck)
@@ -131,7 +137,7 @@ def rotate_keypair():
         ]
         config.writelines(txt_lines)
 
-    print('\n=> Set file permissions on SSH alias to 600' + ck)
+    print('\n=> Setting file permissions on SSH alias to 600' + ck)
     os.chmod(ssh_cfg, 0o600)
 
     print('=> Testing remote access to EC2 instance using new key pair' + ck)
@@ -180,10 +186,11 @@ def rotate_keypair():
             print('=> Renaming new private key to ' + key_path + prv_key + ck)
             os.rename(key_path + 'tmp.' + prv_key, key_path + prv_key)
 
-            print('=> Updating ec2_key default value => ' + prv_key + ck)
+            print('=> Updating script\'s default values' + ck)
             with open('keypair.py') as file:
-                sub = file.read().replace(ec2_key, prv_key)
-
+                sub = (file.read()
+                    .replace(ec2_key, prv_key)
+                    .replace(last_host_key, ec2_ip))
             with open('keypair.py', "w") as file:
                 file.write(sub)
 
