@@ -34,7 +34,7 @@ Code walkthrough and additional information can be found on my blog post at [Dev
     ec2_key = 'dev_key.pem'       # current private key
     ec2_user = 'ec2-user'         # default AMI user
     ec2_port = '22'               # SSH port number
-    key_name = 'dev_key'          # base name of existing private key
+    key_name = 'dev_key'          # base name of private key
 
     # Run script
     $ cd ~/DevOpsEtc/ec2-keypair-rotation && ./keypair.py
@@ -56,7 +56,6 @@ Code walkthrough and additional information can be found on my blog post at [Dev
 
 **Road Map:**
 - add input prompts to ingest parameters of EC2 instance values
-- switch over to Paramiko module for SSH; kill subprocess.run()s
 
 **Contributing:**
 1. Review open issues

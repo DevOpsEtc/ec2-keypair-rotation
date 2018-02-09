@@ -25,12 +25,13 @@ def rotate_keypair():
     # key pair rotation defaults
     key_path = '~/.ssh/'
     key_path = os.path.expanduser(key_path)
-    key_name = 'dev_key'        # base name of existing private key
+    key_name = 'dev_key' # base name of private key
     prv_key = key_name + '.pem'
     pub_key = key_name + '.pub'
-    ssh_host = 'dev'            # name of SSH alias
+    ssh_host = 'dev' # name of SSH alias
+    ssh_host_tmp = ssh_host +'_tmp' # name of tmp SSH alias
     ssh_cfg = key_path + 'config.d/' + ssh_host
-    last_host_key = '54.193.18.195' # no edit, it's autopopulated!
+    last_host_key = '54.193.18.195' # don't edit, it's autopopulated!
 
     # initial ssh connection string
     ec2_ssh_str = key_path + ec2_key + ' ' + ec2_user + '@' + ec2_ip
@@ -87,7 +88,7 @@ def rotate_keypair():
     subprocess.run('ssh -o StrictHostKeyChecking=no -tt -i ' + ec2_ssh_str + \
         ' exit &>/dev/null', shell=True)
 
-    print('=> Pushing public key to EC2 instance' + ck)
+    print('=> Pushing public key to EC2 instance\'s authorized_keys' + ck)
     subprocess.run('cat ' + key_path + pub_key + ' | ssh -i ' + ec2_ssh_str + \
         ' "sudo tee -a ~/.ssh/authorized_keys > /dev/null"', shell=True)
 
@@ -143,20 +144,27 @@ def rotate_keypair():
     os.chmod(ssh_cfg, 0o600)
 
     print('=> Testing remote access to EC2 instance using new key pair' + ck)
-    # ssh_host = 'greg'
     try:
-        subprocess.run(
-            'ssh ' + ssh_host + '_tmp' + ' exit',
+        subprocess.run(['ssh', ssh_host_tmp, 'exit'],
             check=True,
-            shell=True,
             universal_newlines=True,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.PIPE
         )
+
     except subprocess.CalledProcessError as err:
-        print(Fore.RED, err.stderr)
+        print(Fore.RED + '\n' + err.stderr)
     else:
         print(Fore.CYAN + '\n   Successfully connected to EC2 instance with '
             'new key pair!\n')
+
+        print('=> Clearing stale keys in EC2 instance\'s authorized_keys' + ck)
+        # get line count, subtract 1, then delete remaining line range
+        cmd = 'file="$HOME/.ssh/authorized_keys" \
+            && num=$(wc -l < $file) \
+            && num=$((num-1)) \
+            && [[ $num -gt 1 ]] \
+            && sed -i "1,$num d" $file'
+        subprocess.run(['ssh', ssh_host, cmd])
 
         prv_key = key_name + '.pem'
 
