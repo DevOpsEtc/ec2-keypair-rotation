@@ -99,7 +99,7 @@ def rotate_keypair():
     subprocess.run('ssh-keygen -p -f ' + key_path + prv_key + \
         ' &>/dev/null', shell=True)
 
-    print('\n=> Bust ssh-agent cache' + ck)
+    print('\n=> Busting ssh-agent cache' + ck)
     subprocess.run('/usr/bin/ssh-add -DK &>/dev/null', shell=True)
 
     print('=> Adding new passphrase to ssh-agent & keychain' + ck + '\n')

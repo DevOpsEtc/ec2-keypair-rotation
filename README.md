@@ -1,4 +1,6 @@
-<div style="vertical-align: text-align: left; font-size: 45px">![DevOpsEtc Logo](image/logo.png) DevOps /etc </div>
+<div style="text-align: left; font-size: 45px">
+  ![DevOpsEtc Logo](image/logo.png) DevOps /etc
+</div>
 
 ### Simple AWS EC2 Key Pair Rotation Using Python and Boto3
 
