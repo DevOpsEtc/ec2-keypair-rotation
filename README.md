@@ -1,6 +1,6 @@
-# DevOps /etc ![alt tag](logo.png "DevOpsEtc logo")
+<div style="vertical-align: text-align: left; font-size: 45px">![DevOpsEtc Logo](image/logo.png) DevOps /etc </div>
 
-## Simple AWS EC2 Key Pair Rotation Using Python and Boto3
+### Simple AWS EC2 Key Pair Rotation Using Python and Boto3
 
 Has it been a while since you last rotated your AWS EC2 instance's key pair? Maybe you keep putting it off, because of the hassle of having to stick the public and private keys in all the appropriate places. Of course, don't forget to test your new connection before removing that old key pair! Ugh, time to automate that process. This project, built with the AWS SDK for Python (Boto3), allows you to quickly rinse/repeat EC2 key pair rotation without breaking a sweat... or your remote access!
 
@@ -22,6 +22,10 @@ Code walkthrough and additional information can be found at:  [DevOpsEtc.com/pos
   * EC2 key pair created before EC2 instance launch
   * EC2 instance with remote access via EC2 key pair
   * Strong passphrase recorded in a password manager (for new key pair you'll be generating)
+
+  ** Script Output Screenshot:**
+
+  <p align="center"> <img src="image/output.png"></p>
 
 **Getting Started:**
 
