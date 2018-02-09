@@ -1,4 +1,4 @@
-![alt tag](logo.png "DevOpsEtc logo") # DevOps /etc
+# DevOps /etc ![alt tag](logo.png "DevOpsEtc logo")
 
 ## Simple AWS EC2 Key Pair Rotation Using Python and Boto3
 
