@@ -40,7 +40,7 @@ def rotate_keypair():
     init(autoreset=True)
     ck = Fore.CYAN + ' \N{heavy check mark}'
 
-`    ec2 = boto3.client('ec2')
+    ec2 = boto3.client('ec2')
 
     try:
         print('\n=> Checking for existing EC2 key pair: ' + key_name + ck)
