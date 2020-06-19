@@ -51,7 +51,7 @@ def rotate_keypair():
     else:
         gen_msg = '   Found! Generating a replacement key pair: '
         ec2.delete_key_pair(KeyName=key_name)
-`
+
     print('\n' + Fore.CYAN + gen_msg + key_name)
     keypair = ec2.create_key_pair(KeyName=key_name)
 
